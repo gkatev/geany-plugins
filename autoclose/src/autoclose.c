@@ -797,6 +797,19 @@ auto_close_chars(
 	if (has_sel && ac_info->enclose_selections)
 		return enclose_selection(data, sci, ch, lexer, style, chars_left, chars_right, editor);
 
+	/* If the next character is not whitespace and there is no selection */
+	if (!has_sel) {
+		gint next_char = sci_get_char_at(sci, sci_get_current_position(sci));
+
+		switch(next_char) {
+			case ' ': case '\n': case '\t':
+			case '\v': case '\f': case 0:
+				break;
+			default:
+				return AC_CONTINUE_ACTION;
+		}
+	}
+
 	/* disable autocompletion inside comments and strings */
 	if (!ac_info->comments_ac_enable && !highlighting_is_code_style(lexer, style))
 		return AC_CONTINUE_ACTION;
@@ -813,6 +826,7 @@ auto_close_chars(
 	data->jump_on_tab += strlen(chars_right);
 	data->last_caret = pos;
 	data->last_line = sci_get_current_line(sci);
+
 	return AC_CONTINUE_ACTION;
 }
 
