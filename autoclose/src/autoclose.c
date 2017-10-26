@@ -530,7 +530,7 @@ enclose_selection(
 			ac_info->make_indent_for_cbracket && !in_comment)
 	{
 		start_line = sci_get_line_from_position(sci, start);
-		
+
 		// Insert the brace right before the start of the selection
 		insert_text(sci, start, "{\n");
 
@@ -698,8 +698,6 @@ gboolean backquote_bashonly;
 static gboolean
 next_allow_ac(gint key, gint next_char)
 {
-	printf("Key: 0x%x\n", key);
-	printf("Next: 0x%x\n", next_char);
 
 	// Allow on whitespace
 	switch(next_char) {
@@ -895,6 +893,22 @@ auto_close_chars(
 	if (!has_sel) {
 		gint next_char = sci_get_char_at(sci, sci_get_current_position(sci));
 		if(!next_allow_ac(ch, next_char)) return AC_CONTINUE_ACTION;
+	}
+
+	/* If the new brace will have a pair do not autoclose.
+	 * To examine this, we insert a dummy brace and check for
+	 * a matching brace. We remove the dummy brace, and
+	 * if another brace was found we check if it already
+	 * had a pair. If not, autoclose won't take place */
+	if(!has_sel) {
+		SSM(sci, SCI_INSERTTEXT, pos, (sptr_t)chars_left);
+
+		int pair = sci_find_matching_brace(sci, pos);
+
+		SSM(sci, SCI_DELETERANGE, pos, 1);
+
+		if(pair != -1 && sci_find_matching_brace(sci, pair - 1) == -1)
+			return AC_CONTINUE_ACTION;
 	}
 
 	/* disable autocompletion inside comments and strings */
