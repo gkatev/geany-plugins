@@ -181,9 +181,11 @@ static gboolean on_editor_button_press_event(GtkWidget *widget, GdkEventButton *
 
 void ao_mark_editor_notify(AoMarkWord *mw, GeanyEditor *editor, SCNotification *nt)
 {
-	// If something is about to be deleted and there is selected text clear the markers
+	/* If something is about to be deleted or inserted 
+	 * and there is selected text clear the markers */
 	if(nt->nmhdr.code == SCN_MODIFIED &&
-		((nt->modificationType & SC_MOD_BEFOREDELETE) == SC_MOD_BEFOREDELETE) &&
+		(((nt->modificationType & SC_MOD_BEFOREDELETE) == SC_MOD_BEFOREDELETE) ||
+		((nt->modificationType & SC_MOD_BEFOREINSERT) == SC_MOD_BEFOREINSERT)) &&
 		sci_has_selection(editor->sci))
 	{
 		AoMarkWordPrivate *priv = AO_MARKWORD_GET_PRIVATE(mw);
