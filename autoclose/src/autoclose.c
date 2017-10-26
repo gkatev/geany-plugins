@@ -508,7 +508,7 @@ enclose_selection(
 	gint       i;
 	gint       start, end;
 	gboolean   in_comment;
-	gint       start_line, start_pos, end_line, text_end_pos;
+	gint       start_line, end_line, text_end_pos;
 	gint       start_indent, indent_width, current_indent;
 
 	start = sci_get_selection_start(sci);
@@ -525,14 +525,14 @@ enclose_selection(
 
 	sci_start_undo_action(sci);
 
-
 	/* Insert {} block - special case: make indents, move cursor to beginning */
 	if (char_is_curly_bracket(ch) && lexer_has_braces(sci, lexer) &&
 			ac_info->make_indent_for_cbracket && !in_comment)
 	{
 		start_line = sci_get_line_from_position(sci, start);
-		start_pos = SSM(sci, SCI_GETLINEINDENTPOSITION, (uptr_t)start_line, 0);
-		insert_text(sci, start_pos, "{\n");
+		
+		// Insert the brace right before the start of the selection
+		insert_text(sci, start, "{\n");
 
 		end_line = sci_get_line_from_position(sci, end);
 		start_indent = sci_get_line_indentation(sci, start_line);
@@ -554,8 +554,11 @@ enclose_selection(
 		sci_set_current_position(sci, text_end_pos, FALSE);
 		SSM(sci, SCI_ADDTEXT, 2, (sptr_t)"\n}");
 		sci_set_line_indentation(sci, i, start_indent);
-		if (ac_info->move_cursor_to_beginning)
-			sci_set_current_position(sci, start_pos, TRUE);
+		if (ac_info->move_cursor_to_beginning) {
+			// Set the cursor position at the beginning of the first line of the new block
+			gint text_start = SSM(sci, SCI_GETLINEINDENTPOSITION, (uptr_t)start_line + 1, 0);
+			sci_set_current_position(sci, text_start, TRUE);
+		}
 	}
 	else
 	{
