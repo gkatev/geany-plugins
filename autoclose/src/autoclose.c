@@ -684,6 +684,97 @@ check_define(
 	return FALSE;
 }
 
+gboolean parenthesis;
+gboolean abracket;
+gboolean abracket_htmlonly;
+gboolean cbracket;
+gboolean sbracket;
+gboolean dquote;
+gboolean squote;
+gboolean backquote;
+gboolean backquote_bashonly;
+
+/* Whether autocomplete should take place, according to the next character*/
+static gboolean
+next_allow_ac(gint key, gint next_char)
+{
+	printf("Key: 0x%x\n", key);
+	printf("Next: 0x%x\n", next_char);
+
+	// Allow on whitespace
+	switch(next_char) {
+		case ' ': case '\n': case '\t':
+		case '\v': case '\f': case 0:
+			return 1;
+	}
+
+	// Special cases regarding symbols
+	switch(key) {
+		case GDK_KEY_parenleft:  {
+			switch(next_char) {
+				case ')': case ']': case '}':
+				case '>':
+					return 1;
+				default:
+					break;
+			}
+
+			break;
+		}
+
+		case GDK_KEY_braceleft: {
+			switch(next_char) {
+				case '(': case '[': case ')':
+				case ']': case '}': case '>':
+					return 1;
+				default:
+					break;
+			}
+
+			break;
+		}
+
+		case GDK_KEY_bracketleft: {
+			switch(next_char) {
+				case '(': case '[': case '{':
+				case ')': case ']': case '}':
+				case '>':
+					return 1;
+				default:
+					break;
+			}
+
+			break;
+		}
+
+		case GDK_KEY_quotedbl:
+		case GDK_KEY_grave:
+		case GDK_KEY_apostrophe: {
+			switch(next_char) {
+				case ')': case ']': case '}':
+				case '>':
+					return 1;
+				default:
+					break;
+			}
+
+			break;
+		}
+
+		// only in HTML (probably)
+		case GDK_KEY_less: {
+			// only needed in whitespace; handled above
+			break;
+		}
+
+		default:
+			break;
+	}
+
+	// Don't allow autocomplete by default
+	return 0;
+}
+
 static gboolean
 auto_close_chars(
 	AutocloseUserData *data,
@@ -803,14 +894,7 @@ auto_close_chars(
 	/* If the next character is not whitespace and there is no selection */
 	if (!has_sel) {
 		gint next_char = sci_get_char_at(sci, sci_get_current_position(sci));
-
-		switch(next_char) {
-			case ' ': case '\n': case '\t':
-			case '\v': case '\f': case 0:
-				break;
-			default:
-				return AC_CONTINUE_ACTION;
-		}
+		if(!next_allow_ac(ch, next_char)) return AC_CONTINUE_ACTION;
 	}
 
 	/* disable autocompletion inside comments and strings */
