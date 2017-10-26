@@ -105,6 +105,9 @@ Section "!Program Files" SEC01
 	SectionIn RO 1 2
 	SetOverwrite ifnewer
 
+	SetOutPath "$INSTDIR\bin"
+	File /r "${RESOURCEDIR}\bin\libgeanypluginutils-0.dll"
+
 	SetOutPath "$INSTDIR\lib"
 	File /r "${RESOURCEDIR}\lib\*.dll"
 
@@ -154,6 +157,7 @@ SectionEnd
 Section Uninstall
 	Delete "$INSTDIR\ReadMe.Dependencies.Geany-Plugins.txt"
 	Delete "$INSTDIR\uninst-plugins.exe"
+	Delete "$INSTDIR\bin\libgeanypluginutils-0.dll"
 	Delete "$INSTDIR\lib\geany\addons.dll"
 	Delete "$INSTDIR\lib\geany\autoclose.dll"
 	Delete "$INSTDIR\lib\geany\automark.dll"
@@ -196,6 +200,7 @@ Section Uninstall
 	Delete "$INSTDIR\lib\geany\treebrowser.dll"
 	Delete "$INSTDIR\lib\geany\updatechecker.dll"
 	Delete "$INSTDIR\lib\geany\webhelper.dll"
+	Delete "$INSTDIR\lib\geany\workbench.dll"
 	Delete "$INSTDIR\lib\geany\xmlsnippets.dll"
 
 	Delete "$INSTDIR\bin\ctags.exe"
@@ -251,7 +256,7 @@ Section Uninstall
 	Delete "$INSTDIR\bin\libicutest58.dll"
 	Delete "$INSTDIR\bin\libicutu58.dll"
 	Delete "$INSTDIR\bin\libicuuc58.dll"
-	Delete "$INSTDIR\bin\libidn-11.dll"
+	Delete "$INSTDIR\bin\libidn2-0.dll"
 	Delete "$INSTDIR\bin\libjavascriptcoregtk-1.0-0.dll"
 	Delete "$INSTDIR\bin\libjavascriptcoregtk-3.0-0.dll"
 	Delete "$INSTDIR\bin\libjpeg-8.dll"
@@ -295,8 +300,6 @@ Section Uninstall
 	Delete "$INSTDIR\bin\lua51.dll"
 	Delete "$INSTDIR\bin\ssleay32.dll"
 
-	Delete "$INSTDIR\share\icons\hicolor\16x16\apps\prjorg-*.png"
-
 	RMDir /r "$INSTDIR\lib\enchant"
 	RMDir /r "$INSTDIR\lib\engines"
 	RMDir /r "$INSTDIR\lib\gio"
@@ -325,12 +328,21 @@ Section Uninstall
 	FindClose $0
 
 	; only if empty
+	RMDir "$INSTDIR\bin"
 	RMDir "$INSTDIR\lib\geany"
 	RMDir "$INSTDIR\lib"
 	RMDir "$INSTDIR\libexec"
 	RMDir "$INSTDIR\share\doc"
 	RMDir "$INSTDIR\share\icons\hicolor\16x16\apps"
 	RMDir "$INSTDIR\share\icons\hicolor\16x16"
+	RMDir "$INSTDIR\share\icons\hicolor\24x24\apps"
+	RMDir "$INSTDIR\share\icons\hicolor\24x24"
+	RMDir "$INSTDIR\share\icons\hicolor\32x32\apps"
+	RMDir "$INSTDIR\share\icons\hicolor\32x32"
+	RMDir "$INSTDIR\share\icons\hicolor\48x48\apps"
+	RMDir "$INSTDIR\share\icons\hicolor\48x48"
+	RMDir "$INSTDIR\share\icons\hicolor\scalable\apps"
+	RMDir "$INSTDIR\share\icons\hicolor\scalable"
 	RMDir "$INSTDIR\share\icons\hicolor"
 	RMDir "$INSTDIR\share\icons"
 	RMDir "$INSTDIR\share\locale"

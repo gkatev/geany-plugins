@@ -26,6 +26,7 @@
 #endif
 
 #include <geanyplugin.h>
+#include <../../utils/src/filelist.h>
 #include "wb_globals.h"
 #include "wb_project.h"
 #include "utils.h"
@@ -55,6 +56,7 @@ struct S_WB_PROJECT_DIR
 	guint file_count;
 	guint folder_count;
 	GHashTable *file_table; /* contains all file names within base_dir, maps file_name->TMSourceFile */
+	gboolean is_prj_base_dir;
 };
 
 struct S_WB_PROJECT
@@ -222,78 +224,6 @@ static void wb_project_clear_idle_queue(GSList **queue)
 }
 
 
-/* Get the list of files for root */
-static GSList *wb_project_dir_get_file_list(WB_PROJECT_DIR *root, const gchar *utf8_path, GSList *patterns,
-		GSList *ignored_dirs_patterns, GSList *ignored_file_patterns, GHashTable *visited_paths)
-{
-	GSList *list = NULL;
-	GDir *dir;
-	gchar *locale_path = utils_get_locale_from_utf8(utf8_path);
-	gchar *real_path = utils_get_real_path(locale_path);
-
-	dir = g_dir_open(locale_path, 0, NULL);
-	if (!dir || !real_path || g_hash_table_lookup(visited_paths, real_path))
-	{
-		if (dir != NULL)
-		{
-			g_dir_close(dir);
-		}
-		g_free(locale_path);
-		g_free(real_path);
-		return NULL;
-	}
-
-	g_hash_table_insert(visited_paths, real_path, GINT_TO_POINTER(1));
-
-	while (TRUE)
-	{
-		const gchar *locale_name;
-		gchar *locale_filename, *utf8_filename, *utf8_name;
-
-		locale_name = g_dir_read_name(dir);
-		if (!locale_name)
-			break;
-
-		utf8_name = utils_get_utf8_from_locale(locale_name);
-		locale_filename = g_build_filename(locale_path, locale_name, NULL);
-		utf8_filename = utils_get_utf8_from_locale(locale_filename);
-
-		if (g_file_test(locale_filename, G_FILE_TEST_IS_DIR))
-		{
-			GSList *lst;
-
-			if (!patterns_match(ignored_dirs_patterns, utf8_name))
-			{
-				lst = wb_project_dir_get_file_list(root, utf8_filename, patterns, ignored_dirs_patterns,
-						ignored_file_patterns, visited_paths);
-				if (lst)
-				{
-					root->folder_count++;
-					list = g_slist_concat(list, lst);
-				}
-			}
-		}
-		else if (g_file_test(locale_filename, G_FILE_TEST_IS_REGULAR))
-		{
-			if (patterns_match(patterns, utf8_name) && !patterns_match(ignored_file_patterns, utf8_name))
-			{
-				root->file_count++;
-				list = g_slist_prepend(list, g_strdup(utf8_filename));
-			}
-		}
-
-		g_free(utf8_filename);
-		g_free(locale_filename);
-		g_free(utf8_name);
-	}
-
-	g_dir_close(dir);
-	g_free(locale_path);
-
-	return list;
-}
-
-
 /* Create a new project dir with base path "utf8_base_dir" */
 static WB_PROJECT_DIR *wb_project_dir_new(const gchar *utf8_base_dir)
 {
@@ -319,6 +249,7 @@ static WB_PROJECT_DIR *wb_project_dir_new(const gchar *utf8_base_dir)
 		offset++;
 	}
 	dir->name = g_strdup(&(dir->base_dir[offset]));
+	dir->is_prj_base_dir = FALSE;
 	return dir;
 }
 
@@ -332,6 +263,38 @@ static void wb_project_dir_collect_source_files(G_GNUC_UNUSED gchar *filename, T
 		g_ptr_array_add(array, sf);
 }
 
+
+/** Set "is project base dir" of a project dir.
+ *
+ * @param directory The project dir
+ * @param value     TRUE:  directory is the base dir of the project
+ *                  FALSE: directory is another dir
+ * 
+ **/
+void wb_project_dir_set_is_prj_base_dir (WB_PROJECT_DIR *directory, gboolean value)
+{
+	if (directory != NULL)
+	{
+		directory->is_prj_base_dir = value;
+	}
+}
+
+
+/** Get "is project base dir" of a project dir.
+ *
+ * @param directory The project dir
+ * @return TRUE:  directory is the base dir of the project
+ *         FALSE: directory is another dir
+ *
+ **/
+gboolean wb_project_dir_get_is_prj_base_dir (WB_PROJECT_DIR *directory)
+{
+	if (directory != NULL)
+	{
+		return directory->is_prj_base_dir;
+	}
+	return FALSE;
+}
 
 /** Get the name of a project dir.
  *
@@ -548,38 +511,25 @@ static guint wb_project_get_file_count(WB_PROJECT *prj)
 /* Rescan/update the file list of a project dir. */
 static guint wb_project_dir_rescan_int(WB_PROJECT *prj, WB_PROJECT_DIR *root)
 {
-	GSList *pattern_list = NULL;
-	GSList *ignored_dirs_list = NULL;
-	GSList *ignored_file_list = NULL;
-	GHashTable *visited_paths;
 	GSList *lst;
 	GSList *elem = NULL;
 	guint filenum = 0;
 	gchar *searchdir;
+	gchar **file_patterns = NULL;
 
 	wb_project_dir_remove_from_tm_workspace(root);
 	g_hash_table_remove_all(root->file_table);
 
-	if (!root->file_patterns || !root->file_patterns[0])
+	if (root->file_patterns && root->file_patterns[0])
 	{
-		const gchar *all_pattern[] = { "*", NULL };
-		pattern_list = get_precompiled_patterns((gchar **)all_pattern);
-	}
-	else
-	{
-		pattern_list = get_precompiled_patterns(root->file_patterns);
+		file_patterns = root->file_patterns;
 	}
 
-	ignored_dirs_list = get_precompiled_patterns(root->ignored_dirs_patterns);
-	ignored_file_list = get_precompiled_patterns(root->ignored_file_patterns);
-
-	visited_paths = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 	searchdir = get_combined_path(prj->filename, root->base_dir);
 	root->file_count = 0;
 	root->folder_count = 0;
-	lst = wb_project_dir_get_file_list
-		(root, searchdir, pattern_list, ignored_dirs_list, ignored_file_list, visited_paths);
-	g_hash_table_destroy(visited_paths);
+	lst = gp_filelist_scan_directory(&(root->file_count), &(root->folder_count),
+		searchdir, file_patterns, root->ignored_dirs_patterns, root->ignored_file_patterns);
 	g_free(searchdir);
 
 	foreach_slist(elem, lst)
@@ -595,15 +545,6 @@ static guint wb_project_dir_rescan_int(WB_PROJECT *prj, WB_PROJECT_DIR *root)
 
 	g_slist_foreach(lst, (GFunc) g_free, NULL);
 	g_slist_free(lst);
-
-	g_slist_foreach(pattern_list, (GFunc) g_pattern_spec_free, NULL);
-	g_slist_free(pattern_list);
-
-	g_slist_foreach(ignored_dirs_list, (GFunc) g_pattern_spec_free, NULL);
-	g_slist_free(ignored_dirs_list);
-
-	g_slist_foreach(ignored_file_list, (GFunc) g_pattern_spec_free, NULL);
-	g_slist_free(ignored_file_list);
 
 	return filenum;
 }
@@ -658,7 +599,7 @@ static GeanyFiletype *filetypes_detect(const gchar *utf8_filename)
 
 
 /* Regenerate tags */
-static void wb_project_regenerate_tags(WB_PROJECT_DIR *root, G_GNUC_UNUSED gpointer user_data)
+static void wb_project_dir_regenerate_tags(WB_PROJECT_DIR *root, G_GNUC_UNUSED gpointer user_data)
 {
 	GHashTableIter iter;
 	gpointer key, value;
@@ -704,7 +645,7 @@ guint wb_project_dir_rescan(WB_PROJECT *prj, WB_PROJECT_DIR *root)
 	total = wb_project_get_file_count(prj);
 	if (prj->generate_tag_prefs == WB_PROJECT_TAG_PREFS_YES || (prj->generate_tag_prefs == WB_PROJECT_TAG_PREFS_AUTO && total < 300))
 	{
-		g_slist_foreach(prj->directories, (GFunc)wb_project_regenerate_tags, NULL);
+		wb_project_dir_regenerate_tags(root, NULL);
 	}
 	return filenum;
 }
@@ -735,7 +676,7 @@ void wb_project_rescan(WB_PROJECT *prj)
 
 	if (prj->generate_tag_prefs == WB_PROJECT_TAG_PREFS_YES || (prj->generate_tag_prefs == WB_PROJECT_TAG_PREFS_AUTO && filenum < 300))
 	{
-		g_slist_foreach(prj->directories, (GFunc)wb_project_regenerate_tags, NULL);
+		g_slist_foreach(prj->directories, (GFunc)wb_project_dir_regenerate_tags, NULL);
 	}
 }
 
@@ -1092,25 +1033,44 @@ static void wb_project_save_directories (gpointer data, gpointer user_data)
 	tmp = (WB_PROJECT_ON_SAVE_USER_DATA *)user_data;
 	dir = (WB_PROJECT_DIR *)data;
 
-	g_snprintf(key, sizeof(key), "Dir%u-BaseDir", tmp->dir_count);
-	g_key_file_set_string(tmp->kf, "Workbench", key, dir->base_dir);
+	if (wb_project_dir_get_is_prj_base_dir(dir) == TRUE)
+	{
+		g_key_file_set_string(tmp->kf, "Workbench", "Prj-BaseDir", dir->base_dir);
 
-	g_snprintf(key, sizeof(key), "Dir%u-FilePatterns", tmp->dir_count);
-	str = g_strjoinv(";", dir->file_patterns);
-	g_key_file_set_string(tmp->kf, "Workbench", key, str);
-	g_free(str);
+		str = g_strjoinv(";", dir->file_patterns);
+		g_key_file_set_string(tmp->kf, "Workbench", "Prj-FilePatterns", str);
+		g_free(str);
 
-	g_snprintf(key, sizeof(key), "Dir%u-IgnoredDirsPatterns", tmp->dir_count);
-	str = g_strjoinv(";", dir->ignored_dirs_patterns);
-	g_key_file_set_string(tmp->kf, "Workbench", key, str);
-	g_free(str);
+		str = g_strjoinv(";", dir->ignored_dirs_patterns);
+		g_key_file_set_string(tmp->kf, "Workbench", "Prj-IgnoredDirsPatterns", str);
+		g_free(str);
 
-	g_snprintf(key, sizeof(key), "Dir%u-IgnoredFilePatterns", tmp->dir_count);
-	str = g_strjoinv(";", dir->ignored_file_patterns);
-	g_key_file_set_string(tmp->kf, "Workbench", key, str);
-	g_free(str);
+		str = g_strjoinv(";", dir->ignored_file_patterns);
+		g_key_file_set_string(tmp->kf, "Workbench", "Prj-IgnoredFilePatterns", str);
+		g_free(str);
+	}
+	else
+	{
+		g_snprintf(key, sizeof(key), "Dir%u-BaseDir", tmp->dir_count);
+		g_key_file_set_string(tmp->kf, "Workbench", key, dir->base_dir);
 
-	tmp->dir_count++;
+		g_snprintf(key, sizeof(key), "Dir%u-FilePatterns", tmp->dir_count);
+		str = g_strjoinv(";", dir->file_patterns);
+		g_key_file_set_string(tmp->kf, "Workbench", key, str);
+		g_free(str);
+
+		g_snprintf(key, sizeof(key), "Dir%u-IgnoredDirsPatterns", tmp->dir_count);
+		str = g_strjoinv(";", dir->ignored_dirs_patterns);
+		g_key_file_set_string(tmp->kf, "Workbench", key, str);
+		g_free(str);
+
+		g_snprintf(key, sizeof(key), "Dir%u-IgnoredFilePatterns", tmp->dir_count);
+		str = g_strjoinv(";", dir->ignored_file_patterns);
+		g_key_file_set_string(tmp->kf, "Workbench", key, str);
+		g_free(str);
+
+		tmp->dir_count++;
+	}
 }
 
 
@@ -1329,10 +1289,12 @@ gboolean wb_project_load(WB_PROJECT *prj, gchar *filename, GError **error)
 {
 	GKeyFile *kf;
 	guint	 index;
-	gchar    *contents;
-	gchar    key[100];
-	gsize    length;
+	gchar	 *contents, *str;
+	gchar	 **splitv;
+	gchar	 key[100];
+	gsize	 length;
 	gboolean success = FALSE;
+	WB_PROJECT_DIR *new_dir;
 
 	g_return_val_if_fail(prj, FALSE);
 
@@ -1352,11 +1314,44 @@ gboolean wb_project_load(WB_PROJECT *prj, gchar *filename, GError **error)
 		return FALSE;
 	}
 
+	/* Import project's base path and file patterns, if not done yet.
+	   (from Geany's standard project configuration) */
+	if (g_key_file_has_group (kf, "project")
+		&& !g_key_file_has_key(kf, "Workbench", "Prj-BaseDir", NULL))
+	{
+		gchar *base_path;
+
+		base_path = g_key_file_get_string(kf, "project", "base_path", NULL);
+		if (base_path != NULL)
+		{
+			gchar *reldirname;
+
+			/* Convert dirname to path relative to the project file */
+			reldirname = get_any_relative_path(prj->filename, base_path);
+
+			new_dir = wb_project_add_directory_int(prj, reldirname, FALSE);
+			if (new_dir != NULL)
+			{
+				wb_project_set_modified(prj, TRUE);
+				wb_project_dir_set_is_prj_base_dir(new_dir, TRUE);
+				str = g_key_file_get_string(kf, "project", "file_patterns", NULL);
+				if (str != NULL)
+				{
+					splitv = g_strsplit (str, ";", -1);
+					wb_project_dir_set_file_patterns(new_dir, splitv);
+					g_strfreev(splitv);
+				}
+				g_free(str);
+			}
+
+			g_free(reldirname);
+			g_free(base_path);
+		}
+	}
+
 	if (g_key_file_has_group (kf, "Workbench"))
 	{
-		WB_PROJECT_DIR *new_dir;
-		gchar *str;
-		gchar **splitv, **bookmarks_strings;
+		gchar **bookmarks_strings;
 
 		/* Load project bookmarks from string list */
 		bookmarks_strings = g_key_file_get_string_list (kf, "Workbench", "Bookmarks", NULL, error);
@@ -1376,6 +1371,41 @@ gboolean wb_project_load(WB_PROJECT *prj, gchar *filename, GError **error)
 				file++;
 			}
 			g_strfreev(bookmarks_strings);
+		}
+
+		/* Load project base dir. */
+		str = g_key_file_get_string(kf, "Workbench", "Prj-BaseDir", NULL);
+		if (str != NULL)
+		{
+			new_dir = wb_project_add_directory_int(prj, str, FALSE);
+			if (new_dir != NULL)
+			{
+				wb_project_dir_set_is_prj_base_dir(new_dir, TRUE);
+
+				str = g_key_file_get_string(kf, "Workbench", "Prj-FilePatterns", NULL);
+				if (str != NULL)
+				{
+					splitv = g_strsplit (str, ";", -1);
+					wb_project_dir_set_file_patterns(new_dir, splitv);
+				}
+				g_free(str);
+
+				str = g_key_file_get_string(kf, "Workbench", "Prj-IgnoredDirsPatterns", NULL);
+				if (str != NULL)
+				{
+					splitv = g_strsplit (str, ";", -1);
+					wb_project_dir_set_ignored_dirs_patterns(new_dir, splitv);
+				}
+				g_free(str);
+
+				str = g_key_file_get_string(kf, "Workbench", "Prj-IgnoredFilePatterns", NULL);
+				if (str != NULL)
+				{
+					splitv = g_strsplit (str, ";", -1);
+					wb_project_dir_set_ignored_file_patterns(new_dir, splitv);
+				}
+				g_free(str);
+			}
 		}
 
 		/* Load project dirs */
