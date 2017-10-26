@@ -711,6 +711,9 @@ auto_close_chars(
 	if (doc->file_type)
 		filetype = doc->file_type->id;
 
+	// Disable autocomplete for plain text files
+	if(doc->file_type->id == GEANY_FILETYPES_NONE) return AC_CONTINUE_ACTION;
+
 	pos = sci_get_current_position(sci);
 	line = sci_get_current_line(sci);
 	ch = event->keyval;
