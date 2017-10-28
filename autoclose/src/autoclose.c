@@ -854,7 +854,7 @@ auto_close_chars(
 	if (has_sel && ac_info->enclose_selections)
 		return enclose_selection(data, sci, ch, lexer, style, chars_left, chars_right, editor);
 
-	/* If there is no selection, autocomplete should be allowed according 
+	/* If there is no selection, autocomplete should be allowed according
 	 * to the next character, as dictated by next_allow_ac() */
 	if (!has_sel) {
 		gint next_char = sci_get_char_at(sci, sci_get_current_position(sci));
@@ -885,7 +885,7 @@ auto_close_chars(
 		return AC_CONTINUE_ACTION;
 
 	/* add ; after struct (if not present) and only for {} */
-	if(ch == GDK_KEY_braceleft && 
+	if(ch == GDK_KEY_braceleft &&
 	sci_get_char_at(sci, sci_get_current_position(sci)) != ';') {
 		struct_semicolon(sci, pos, chars_right, filetype);
 	}
