@@ -699,10 +699,11 @@ static gboolean
 next_allow_ac(gint key, gint next_char)
 {
 
-	// Allow on whitespace
+	// Allow on whitespace or semicolon
 	switch(next_char) {
 		case ' ': case '\n': case '\t':
 		case '\v': case '\f': case 0:
+		case ';':
 			return 1;
 	}
 
@@ -889,7 +890,8 @@ auto_close_chars(
 	if (has_sel && ac_info->enclose_selections)
 		return enclose_selection(data, sci, ch, lexer, style, chars_left, chars_right, editor);
 
-	/* If the next character is not whitespace and there is no selection */
+	/* If there is no selection, autocomplete should be allowed according 
+	 * to the next character, as dictated by next_allow_ac() */
 	if (!has_sel) {
 		gint next_char = sci_get_char_at(sci, sci_get_current_position(sci));
 		if(!next_allow_ac(ch, next_char)) return AC_CONTINUE_ACTION;
@@ -918,8 +920,9 @@ auto_close_chars(
 	if (ch == chars_right[0] && chars_left[0] != chars_right[0])
 		return AC_CONTINUE_ACTION;
 
-	/* add ; after struct */
-	struct_semicolon(sci, pos, chars_right, filetype);
+	/* add ; after struct (if not present) */
+	if(sci_get_char_at(sci, sci_get_current_position(sci)) != ';')
+		struct_semicolon(sci, pos, chars_right, filetype);
 
 	/* just close char */
 	SSM(sci, SCI_INSERTTEXT, pos, (sptr_t)chars_right);
