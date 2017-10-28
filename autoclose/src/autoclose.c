@@ -920,9 +920,11 @@ auto_close_chars(
 	if (ch == chars_right[0] && chars_left[0] != chars_right[0])
 		return AC_CONTINUE_ACTION;
 
-	/* add ; after struct (if not present) */
-	if(sci_get_char_at(sci, sci_get_current_position(sci)) != ';')
+	/* add ; after struct (if not present) and only for {} */
+	if(ch == GDK_KEY_braceleft && 
+	sci_get_char_at(sci, sci_get_current_position(sci)) != ';') {
 		struct_semicolon(sci, pos, chars_right, filetype);
+	}
 
 	/* just close char */
 	SSM(sci, SCI_INSERTTEXT, pos, (sptr_t)chars_right);
