@@ -31,14 +31,14 @@ RequestExecutionLevel highest ; set execution level for Windows Vista
 ; helper defines  ;
 ;;;;;;;;;;;;;;;;;;;
 !define PRODUCT_NAME "Geany-Plugins"
-!define PRODUCT_VERSION "1.32"
-!define PRODUCT_VERSION_ID "1.32.0.0"
+!define PRODUCT_VERSION "1.33"
+!define PRODUCT_VERSION_ID "1.33.0.0"
 !define PRODUCT_PUBLISHER "The Geany developer team"
 !define PRODUCT_WEB_SITE "https://www.geany.org/"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define PRODUCT_DIR_REGKEY "Software\Geany-Plugins"
 !define GEANY_DIR_REGKEY "Software\Geany"
-!define REQUIRED_GEANY_VERSION "1.32.0"
+!define REQUIRED_GEANY_VERSION "1.33.0"
 !define RESOURCEDIR "geany-plugins-${PRODUCT_VERSION}"
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -111,9 +111,6 @@ Section "!Program Files" SEC01
 	SetOutPath "$INSTDIR\lib"
 	File /r "${RESOURCEDIR}\lib\*.dll"
 
-	SetOutPath "$INSTDIR\share\icons"
-	File /r "${RESOURCEDIR}\share\icons\*"
-
 	SetOutPath "$INSTDIR\share\geany-plugins"
 	File /r "${RESOURCEDIR}\share\geany-plugins\*"
 SectionEnd
@@ -170,6 +167,7 @@ Section Uninstall
 	Delete "$INSTDIR\lib\geany\geanygendoc.dll"
 	Delete "$INSTDIR\lib\geany\geanyinsertnum.dll"
 	Delete "$INSTDIR\lib\geany\geanylatex.dll"
+	Delete "$INSTDIR\lib\geany\latex.dll"
 	; Keep for geanylipsum propper deleting old dll some time
 	Delete "$INSTDIR\lib\geany\geanylipsum.dll"
 	Delete "$INSTDIR\lib\geany\geanylua.dll"

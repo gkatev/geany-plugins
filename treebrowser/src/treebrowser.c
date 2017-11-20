@@ -126,10 +126,8 @@ PLUGIN_SET_TRANSLATABLE_INFO(
 	GETTEXT_PACKAGE,
 	_("TreeBrowser"),
 	_("This plugin adds a tree browser to Geany, allowing the user to "
-	  "browse files using a tree view of the directory being browsed."
-	  "\nThis plugin currently has no maintainer. Would you like to help "
-	  "by contributing to this plugin?"),
-	"0.20" ,
+	  "browse files using a tree view of the directory being browsed."),
+	"1.32" ,
 	"Adrian Dimitrov (dimitrov.adrian@gmail.com)")
 
 
@@ -1208,15 +1206,15 @@ create_popup_menu(const gchar *name, const gchar *uri)
 	gboolean is_dir 		= is_exists ? g_file_test(uri, G_FILE_TEST_IS_DIR) : FALSE;
 	gboolean is_document 	= document_find_by_filename(uri) != NULL ? TRUE : FALSE;
 
-	item = ui_image_menu_item_new(GTK_STOCK_GO_UP, _("Go _up"));
+	item = ui_image_menu_item_new(GTK_STOCK_GO_UP, _("Go _Up"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_go_up), NULL);
 
-	item = ui_image_menu_item_new(GTK_STOCK_GO_UP, _("Set _path from document"));
+	item = ui_image_menu_item_new(GTK_STOCK_GO_UP, _("Set _Path From Document"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_current_path), NULL);
 
-	item = ui_image_menu_item_new(GTK_STOCK_OPEN, _("_Open externally"));
+	item = ui_image_menu_item_new(GTK_STOCK_OPEN, _("_Open Externally"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect_data(item, "activate", G_CALLBACK(on_menu_open_externally), g_strdup(uri), (GClosureNotify)g_free, 0);
 	gtk_widget_set_sensitive(item, is_exists);
@@ -1225,7 +1223,7 @@ create_popup_menu(const gchar *name, const gchar *uri)
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect_data(item, "activate", G_CALLBACK(on_menu_open_terminal), g_strdup(uri), (GClosureNotify)g_free, 0);
 
-	item = ui_image_menu_item_new(GTK_STOCK_GOTO_TOP, _("Set as _root"));
+	item = ui_image_menu_item_new(GTK_STOCK_GOTO_TOP, _("Set as _Root"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect_data(item, "activate", G_CALLBACK(on_menu_set_as_root), g_strdup(uri), (GClosureNotify)g_free, 0);
 	gtk_widget_set_sensitive(item, is_dir);
@@ -1242,11 +1240,11 @@ create_popup_menu(const gchar *name, const gchar *uri)
 	item = gtk_separator_menu_item_new();
 	gtk_container_add(GTK_CONTAINER(menu), item);
 
-	item = ui_image_menu_item_new(GTK_STOCK_ADD, _("Creat_e new directory"));
+	item = ui_image_menu_item_new(GTK_STOCK_ADD, _("N_ew Folder"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_create_new_object), (gpointer)"directory");
 
-	item = ui_image_menu_item_new(GTK_STOCK_NEW, _("Create _new file"));
+	item = ui_image_menu_item_new(GTK_STOCK_NEW, _("_New File"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_create_new_object), (gpointer)"file");
 
@@ -1273,7 +1271,7 @@ create_popup_menu(const gchar *name, const gchar *uri)
 	g_signal_connect_data(item, "activate", G_CALLBACK(on_menu_close_children), g_strdup(uri), (GClosureNotify)g_free, 0);
 	gtk_widget_set_sensitive(item, is_dir);
 
-	item = ui_image_menu_item_new(GTK_STOCK_COPY, _("_Copy full path to clipboard"));
+	item = ui_image_menu_item_new(GTK_STOCK_COPY, _("_Copy Full Path to Clipboard"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect_data(item, "activate", G_CALLBACK(on_menu_copy_uri), g_strdup(uri), (GClosureNotify)g_free, 0);
 	gtk_widget_set_sensitive(item, is_exists);
@@ -1282,28 +1280,28 @@ create_popup_menu(const gchar *name, const gchar *uri)
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	gtk_widget_show(item);
 
-	item = ui_image_menu_item_new(GTK_STOCK_GO_FORWARD, _("E_xpand all"));
+	item = ui_image_menu_item_new(GTK_STOCK_GO_FORWARD, _("E_xpand All"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_expand_all), NULL);
 
-	item = ui_image_menu_item_new(GTK_STOCK_GO_BACK, _("Coll_apse all"));
+	item = ui_image_menu_item_new(GTK_STOCK_GO_BACK, _("Coll_apse All"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_collapse_all), NULL);
 
 	item = gtk_separator_menu_item_new();
 	gtk_container_add(GTK_CONTAINER(menu), item);
 
-	item = gtk_check_menu_item_new_with_mnemonic(_("Show boo_kmarks"));
+	item = gtk_check_menu_item_new_with_mnemonic(_("Show Boo_kmarks"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), CONFIG_SHOW_BOOKMARKS);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_show_bookmarks), NULL);
 
-	item = gtk_check_menu_item_new_with_mnemonic(_("Sho_w hidden files"));
+	item = gtk_check_menu_item_new_with_mnemonic(_("Sho_w Hidden Files"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), CONFIG_SHOW_HIDDEN_FILES);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_show_hidden_files), NULL);
 
-	item = gtk_check_menu_item_new_with_mnemonic(_("Show tool_bars"));
+	item = gtk_check_menu_item_new_with_mnemonic(_("Show Tool_bars"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), CONFIG_SHOW_BARS ? TRUE : FALSE);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_show_bars), NULL);
@@ -2142,9 +2140,9 @@ plugin_init(GeanyData *data)
 	keybindings_set_item(key_group, KB_RENAME_OBJECT, kb_activate,
 		0, 0, "rename_object", _("Rename Object"), NULL);
 	keybindings_set_item(key_group, KB_CREATE_FILE, kb_activate,
-		0, 0, "create_file", _("Create New File"), NULL);
+		0, 0, "create_file", _("New File"), NULL);
 	keybindings_set_item(key_group, KB_CREATE_DIR, kb_activate,
-		0, 0, "create_dir", _("Create New Directory"), NULL);
+		0, 0, "create_dir", _("New Folder"), NULL);
 	keybindings_set_item(key_group, KB_REFRESH, kb_activate,
 		0, 0, "rename_refresh", _("Refresh"), NULL);
 	keybindings_set_item(key_group, KB_TRACK_CURRENT, kb_activate,
