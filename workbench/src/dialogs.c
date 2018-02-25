@@ -28,6 +28,77 @@
 
 extern GeanyPlugin *geany_plugin;
 
+
+/** Shows the dialog "Create new file".
+ *
+ * The dialog lets the user create a new file (filter *).
+ *
+ * @param path The current folder
+ * @return The filename
+ *
+ **/
+gchar *dialogs_create_new_file(const gchar *path)
+{
+	gchar *filename = NULL;
+	GtkWidget *dialog;
+
+	dialog = gtk_file_chooser_dialog_new(_("Create new file"),
+		GTK_WINDOW(wb_globals.geany_plugin->geany_data->main_widgets->window), GTK_FILE_CHOOSER_ACTION_SAVE,
+		_("_Cancel"), GTK_RESPONSE_CANCEL,
+		_("C_reate"), GTK_RESPONSE_ACCEPT, NULL);
+	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+	if (path != NULL)
+	{
+		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), path);
+	}
+
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+	{
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+	}
+
+	gtk_widget_destroy(dialog);
+
+	return filename;
+}
+
+
+/** Shows the dialog "Create new directory".
+ *
+ * The dialog lets the user create a new directory.
+ *
+ * @param path The current folder
+ * @return The filename
+ *
+ **/
+gchar *dialogs_create_new_directory(const gchar *path)
+{
+	gchar *filename = NULL;
+	GtkWidget *dialog;
+
+	dialog = gtk_file_chooser_dialog_new(_("Create new directory"),
+		GTK_WINDOW(wb_globals.geany_plugin->geany_data->main_widgets->window), GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER,
+		_("_Cancel"), GTK_RESPONSE_CANCEL,
+		_("C_reate"), GTK_RESPONSE_ACCEPT, NULL);
+	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+	if (path != NULL)
+	{
+		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), path);
+	}
+
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+	{
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+	}
+
+	gtk_widget_destroy(dialog);
+
+	return filename;
+}
+
+
 /** Shows the dialog "Create new workbench".
  *
  * The dialog lets the user create a new workbench file (filter *.geanywb).
@@ -337,7 +408,7 @@ gboolean dialogs_workbench_settings(WORKBENCH *workbench)
 {
 	gint result;
 	GtkWidget *w_rescan_projects_on_open;
-	GtkWidget *dialog, *label, *content_area;
+	GtkWidget *dialog, *content_area;
 	GtkWidget *vbox, *hbox, *table;
 	GtkDialogFlags flags;
 	gboolean changed, rescan_projects_on_open, rescan_projects_on_open_old;
@@ -358,10 +429,8 @@ gboolean dialogs_workbench_settings(WORKBENCH *workbench)
 	gtk_table_set_row_spacings(GTK_TABLE(table), 5);
 	gtk_table_set_col_spacings(GTK_TABLE(table), 10);
 
-	label = gtk_label_new(_("Rescan all projects on open:"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-	w_rescan_projects_on_open = gtk_check_button_new();
-	ui_table_add_row(GTK_TABLE(table), 0, label, w_rescan_projects_on_open, NULL);
+	w_rescan_projects_on_open = gtk_check_button_new_with_mnemonic(_("_Rescan all projects on open"));
+	ui_table_add_row(GTK_TABLE(table), 0, w_rescan_projects_on_open, NULL);
 	gtk_widget_set_tooltip_text(w_rescan_projects_on_open,
 		_("If the option is activated (default), then all projects will be re-scanned"
 		  " on opening of the workbench."));
