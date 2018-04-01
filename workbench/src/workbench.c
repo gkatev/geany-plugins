@@ -48,6 +48,7 @@ struct S_WORKBENCH
 	gboolean  modified;
 	gboolean  rescan_projects_on_open;
 	gboolean  enable_live_update;
+	gboolean  expand_on_hover;
 	GPtrArray *projects;
 	GPtrArray *bookmarks;
 	WB_MONITOR *monitor;
@@ -92,9 +93,7 @@ WORKBENCH *workbench_new(void)
 	new_wb->enable_live_update = TRUE;
 	new_wb->projects = g_ptr_array_new();
 	new_wb->bookmarks = g_ptr_array_new();
-#ifdef __WB_LIVE_UPDATE
 	new_wb->monitor = wb_monitor_new();
-#endif
 
 	return new_wb;
 }
@@ -125,9 +124,7 @@ void workbench_free(WORKBENCH *wb)
 		}
 	}
 
-#ifdef __WB_LIVE_UPDATE
 	wb_monitor_free(wb->monitor);
-#endif
 	g_ptr_array_free (wb->projects, TRUE);
 	g_free(wb);
 }
@@ -251,6 +248,42 @@ gboolean workbench_get_enable_live_update(WORKBENCH *wb)
 	if (wb != NULL)
 	{
 		return wb->enable_live_update;
+	}
+	return FALSE;
+}
+
+
+/** Set the "Expand on hover" option.
+ *
+ * @param wb    The workbench
+ * @param value The value to set
+ *
+ **/
+void workbench_set_expand_on_hover(WORKBENCH *wb, gboolean value)
+{
+	if (wb != NULL)
+	{
+		if (wb->expand_on_hover != value)
+		{
+			wb->expand_on_hover = value;
+			wb->modified = TRUE;
+		}
+	}
+}
+
+
+/** Get the "Expand on hover" option.
+ *
+ * @param wb The workbench
+ * @return TRUE = expand a tree-node on hovering over it,
+ *         FALSE = don't
+ *
+ **/
+gboolean workbench_get_expand_on_hover(WORKBENCH *wb)
+{
+	if (wb != NULL)
+	{
+		return wb->expand_on_hover;
 	}
 	return FALSE;
 }
@@ -657,6 +690,7 @@ gboolean workbench_save(WORKBENCH *wb, GError **error)
 		g_key_file_set_string(kf, "General", "version", "1.0");
 		g_key_file_set_boolean(kf, "General", "RescanProjectsOnOpen", wb->rescan_projects_on_open);
 		g_key_file_set_boolean(kf, "General", "EnableLiveUpdate", wb->enable_live_update);
+		g_key_file_set_boolean(kf, "General", "ExpandOnHover", wb->expand_on_hover);
 
 		/* Save Workbench bookmarks as string list */
 		boomarks_size = workbench_get_bookmarks_count(wb);
@@ -789,6 +823,16 @@ gboolean workbench_load(WORKBENCH *wb, const gchar *filename, GError **error)
 			/* Not found. Might happen if the workbench was created with an older version of the plugin.
 			   Initialize with TRUE. */
 			wb->enable_live_update = TRUE;
+		}
+		if (g_key_file_has_key (kf, "General", "ExpandOnHover", error))
+		{
+			wb->expand_on_hover = g_key_file_get_boolean(kf, "General", "ExpandOnHover", error);
+		}
+		else
+		{
+			/* Not found. Might happen if the workbench was created with an older version of the plugin.
+			   Initialize with FALSE. */
+			wb->expand_on_hover = FALSE;
 		}
 
 		/* Load Workbench bookmarks from string list */
@@ -923,7 +967,6 @@ static gboolean workbench_references_are_valid(WORKBENCH *wb, WB_PROJECT *prj, W
  * @param file The new file to add to project/directory
  *
  **/
-#ifdef __WB_LIVE_UPDATE
 void workbench_process_add_file_event(WORKBENCH *wb, WB_PROJECT *prj, WB_PROJECT_DIR *dir, const gchar *file)
 {
 	if (workbench_references_are_valid(wb, prj, dir) == FALSE)
@@ -936,7 +979,6 @@ void workbench_process_add_file_event(WORKBENCH *wb, WB_PROJECT *prj, WB_PROJECT
 
 	wb_project_dir_add_file(prj, dir, file);
 }
-#endif
 
 
 /** Process the remove file event.
@@ -951,7 +993,6 @@ void workbench_process_add_file_event(WORKBENCH *wb, WB_PROJECT *prj, WB_PROJECT
  * @param file The file to remove from project/directory
  *
  **/
-#ifdef __WB_LIVE_UPDATE
 void workbench_process_remove_file_event(WORKBENCH *wb, WB_PROJECT *prj, WB_PROJECT_DIR *dir, const gchar *file)
 {
 	if (workbench_references_are_valid(wb, prj, dir) == FALSE)
@@ -964,11 +1005,9 @@ void workbench_process_remove_file_event(WORKBENCH *wb, WB_PROJECT *prj, WB_PROJ
 
 	wb_project_dir_remove_file(prj, dir, file);
 }
-#endif
 
 
 /* Foreach callback function for creating file monitors. */
-#ifdef __WB_LIVE_UPDATE
 static void workbench_enable_live_update_foreach_cb(SIDEBAR_CONTEXT *context,
 													gpointer userdata)
 {
@@ -998,7 +1037,6 @@ static void workbench_enable_live_update_foreach_cb(SIDEBAR_CONTEXT *context,
 
 	g_free(abs_path);
 }
-#endif
 
 
 /** Enable live update.
@@ -1011,7 +1049,6 @@ static void workbench_enable_live_update_foreach_cb(SIDEBAR_CONTEXT *context,
  **/
 void workbench_enable_live_update(WORKBENCH *wb)
 {
-#ifdef __WB_LIVE_UPDATE
 	if (wb != NULL)
 	{
 		sidebar_call_foreach(DATA_ID_DIRECTORY,
@@ -1019,7 +1056,6 @@ void workbench_enable_live_update(WORKBENCH *wb)
 		sidebar_call_foreach(DATA_ID_SUB_DIRECTORY,
 			workbench_enable_live_update_foreach_cb, wb->monitor);
 	}
-#endif
 }
 
 
@@ -1033,10 +1069,8 @@ void workbench_enable_live_update(WORKBENCH *wb)
  **/
 void workbench_disable_live_update(WORKBENCH *wb)
 {
-#ifdef __WB_LIVE_UPDATE
 	if (wb != NULL)
 	{
 		wb_monitor_free(wb->monitor);
 	}
-#endif
 }
