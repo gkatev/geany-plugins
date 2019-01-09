@@ -23,6 +23,9 @@ gtkv="3"
 # gtkspell - for GeanyVC plugin
 # the rest is dependency-dependency
 packages="
+p11-kit
+brotli
+ca-certificates
 ctags
 ctpl-git
 curl
@@ -47,6 +50,7 @@ libgpg-error
 libgit2
 libidn2
 libjpeg-turbo
+libpsl
 libogg
 libsoup
 libssh2
@@ -66,7 +70,6 @@ nettle
 nghttp2
 openssl
 orc
-p11-kit
 readline
 rtmpdump-git
 sqlite3
@@ -217,7 +220,7 @@ cleanup_unnecessary_files() {
 	rm -rf lib/lua
 	rm -rf lib/p11-kit
 	rm -rf lib/python2.7
-	rm -rf lib/python3.6
+	rm -rf lib/python3.7
 	find lib -name '*.h' -delete
 	find lib -name '*.a' -delete
 	find lib -name '*.typelib' -delete
@@ -253,7 +256,9 @@ cleanup_unnecessary_files() {
 	rm -rf share/readline
 	rm -rf share/zsh
 	# ssl: cleanup ssl files
-	rm -rf ssl
+	rm -rf ssl/*.cnf
+	rm -rf ssl/*.cnf.dist
+	rm -rf ssl/*.pem
 	# bin: cleanup binaries and libs (delete anything except *.dll and binaries we need)
 	find bin \
 		! -name '*.dll' \

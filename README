@@ -65,7 +65,6 @@ Available plugins are:
 * ``geanyextrasel`` -- the GeanyExtraSel plugin
 * ``geanygendoc`` -- the GeanyGenDoc plugin
 * ``geanyinsertnum`` -- the GeanyInsertNum plugin
-* ``latex`` -- the LaTeX plugin
 * ``geanylua`` -- the GeanyLua plugin
 * ``geanymacro`` -- the GeanyMacro plugin
 * ``geanyminiscript`` -- the GeanyMiniScript plugin
@@ -77,6 +76,7 @@ Available plugins are:
 * ``geniuspaste`` -- the paste to a pastebin plugin
 * ``gitchangebar`` -- the GitChangeBar plugin
 * ``gtkspell`` -- GeanyVC's spell-check support
+* ``latex`` -- the LaTeX plugin
 * ``lineoperations`` -- simple line functions that can be applied to an open file
 * ``lipsum`` -- the Lipsum plugin
 * ``markdown`` -- the Markdown plugin
@@ -91,13 +91,12 @@ Available plugins are:
 * ``sendmail`` -- the GeanySendmail plugin
 * ``shiftcolumn`` -- the ShiftColumn plugin
 * ``spellcheck`` -- the spellcheck plugin
-* ``treebrowser`` -- the Treebrowser plugin
 * ``tableconvert`` -- the Tableconvert plugin
+* ``treebrowser`` -- the Treebrowser plugin
 * ``updatechecker`` -- the Updatechecker plugin
+* ``vimode`` -- the Vim-mode plugin
 * ``webhelper`` -- the WebHelper plugin
 * ``xmlsnippets`` -- the XMLSnippets plugin
-* ``extra-c-warnings`` -- extra C Compiler warnings (see also HACKING)
-* ``cppcheck`` -- static code analysis using cppcheck (see also HACKING)
 
 Example::
 

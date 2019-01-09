@@ -99,7 +99,7 @@ gboolean utils_check_path(const gchar *pathname, gboolean file, int mode)
 
 		if (stat(path, &buf) == 0)
 		{
-			if (!S_ISDIR(buf.st_mode) == file)
+			if ((!S_ISDIR(buf.st_mode)) == file)
 				result = access(path, mode) == 0;
 			else
 				errno = file ? EISDIR : ENOTDIR;
@@ -324,7 +324,7 @@ gboolean utils_source_filetype(GeanyFiletype *ft)
 
 		guint i;
 
-		for (i = 0; i < sizeof ft_id / sizeof ft_id[0]; i++)
+		for (i = 0; i < sizeof(ft_id) / sizeof(ft_id[0]); i++)
 			if (ft_id[i] == ft->id)
 				return TRUE;
 	}
@@ -437,10 +437,21 @@ void utils_remark(GeanyDocument *doc)
 
 guint utils_parse_sci_color(const gchar *string)
 {
+#if !GTK_CHECK_VERSION(3, 14, 0)
 	GdkColor color;
 
 	gdk_color_parse(string, &color);
 	return ((color.blue >> 8) << 16) + (color.green & 0xFF00) + (color.red >> 8);
+#else
+	GdkRGBA color;
+	guint blue, green, red;
+
+	gdk_rgba_parse(&color, string);
+	blue = color.blue * 0xFF;
+	green = color.green * 0xFF;
+	red = color.red * 0xFF;
+	return (blue << 16) + (green << 8) + red;
+#endif
 }
 
 gboolean utils_key_file_write_to_file(GKeyFile *config, const char *configfile)
