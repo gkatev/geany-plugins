@@ -202,6 +202,7 @@ geanyvc/src/geanyvc.c
 geanyvc/src/geanyvc.h
 geanyvc/src/vc_bzr.c
 geanyvc/src/vc_cvs.c
+geanyvc/src/vc_fossil.c
 geanyvc/src/vc_git.c
 geanyvc/src/vc_hg.c
 geanyvc/src/vc_svk.c
@@ -220,6 +221,8 @@ keyrecord/src/keyrecord.c
 
 # LineOperations
 lineoperations/src/lineoperations.c
+lineoperations/src/lo_fns.c
+lineoperations/src/lo_prefs.c
 
 # lipsum
 lipsum/src/lipsum.c
@@ -321,6 +324,7 @@ workbench/src/dialogs.c
 workbench/src/menu.c
 workbench/src/plugin_main.c
 workbench/src/popup_menu.c
+workbench/src/search_projects.c
 workbench/src/sidebar.c
 workbench/src/utils.c
 workbench/src/wb_globals.c

@@ -14,7 +14,7 @@ gtkv="3"
 # ctags - binary for GeanyCTags plugin
 # ctpl-git - for GeanyGenDoc plugin
 # enchant, hunspell - for SpellCheck plugin
-# curl, glib-networking, gnutls, icu, sqlite3, webkitgtk2/3 for WebHelper and Markdown plugins
+# curl, glib-networking, gnutls, icu, libproxy, sqlite3, webkitgtk2/3 for WebHelper and Markdown plugins
 # lua51 - for GeanyLua plugin
 # gnupg, gpgme - for GeanyPG plugin
 # libsoup - for UpdateChecker plugin
@@ -50,8 +50,9 @@ libgpg-error
 libgit2
 libidn2
 libjpeg-turbo
-libpsl
 libogg
+libpsl
+libproxy
 libsoup
 libssh2
 libsystre
@@ -220,7 +221,7 @@ cleanup_unnecessary_files() {
 	rm -rf lib/lua
 	rm -rf lib/p11-kit
 	rm -rf lib/python2.7
-	rm -rf lib/python3.7
+	rm -rf lib/python3.8
 	find lib -name '*.h' -delete
 	find lib -name '*.a' -delete
 	find lib -name '*.typelib' -delete
@@ -232,11 +233,14 @@ cleanup_unnecessary_files() {
 	rm -f lib/bin/libenchant_zemberek.dll
 	# enchant: remove aspell engine (it would require the aspell library which we don't need)
 	rm -f lib/enchant/libenchant_aspell.dll
+	# libproxy: remove KDE module
+	rm -f lib/modules/config_kde.dll
 	# sbin: cleanup sbin files
 	rm -rf sbin
 	# share: cleanup other unnecessary files
 	rm -rf share/aclocal
 	rm -rf share/bash-completion
+	rm -rf share/cmake
 	rm -rf share/common-lisp
 	rm -rf share/dbus-1
 	rm -rf share/doc
@@ -247,6 +251,7 @@ cleanup_unnecessary_files() {
 	rm -rf share/glib-2.0
 	rm -rf share/gnupg
 	rm -rf share/gst-plugins-base
+	rm -rf share/gstreamer-1.0
 	rm -rf share/gtk-doc
 	rm -rf share/icu
 	rm -rf share/info

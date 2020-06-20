@@ -22,7 +22,7 @@
  */
 
 /* VC plugin */
-/* This plugin allow to works with cvs/svn/git inside geany light IDE. */
+/* This plugin allows to work with cvs/svn/git/bzr/fossil inside geany light IDE. */
 
 #include <string.h>
 #include <glib.h>
@@ -84,11 +84,13 @@ static gboolean set_editor_menu_entries;
 static gboolean set_menubar_entry;
 static gint commit_dialog_width = 0;
 static gint commit_dialog_height = 0;
+static GSList *commit_message_history = NULL;
 
 static gchar *config_file;
 
 static gboolean enable_cvs;
 static gboolean enable_git;
+static gboolean enable_fossil;
 static gboolean enable_svn;
 static gboolean enable_svk;
 static gboolean enable_bzr;
@@ -154,6 +156,15 @@ enum
 	VC_REVERT_BASEDIR,
 	COUNT_KB
 };
+
+enum
+{
+	COMMIT_MESSAGE_HISTORY_DISPLAY_TEXT = 0,
+	COMMIT_MESSAGE_HISTORY_FULL_TEXT,
+	COMMIT_MESSAGE_HISTORY_ACTIVE,
+	COMMIT_MESSAGE_HISTORY_NUM_COLUMNS
+};
+#define COMMIT_MESSAGE_HISTORY_LENGTH 10
 
 
 GSList *get_commit_files_null(G_GNUC_UNUSED const gchar * dir)
@@ -1319,6 +1330,90 @@ static void commit_tree_selection_changed_cb(GtkTreeSelection *sel, GtkTextView 
 	g_free(path);
 }
 
+static void commit_message_update_cb(GtkWidget *widget, gpointer user_data)
+{
+	GtkTreeIter iter;
+
+	if (gtk_combo_box_get_active_iter(GTK_COMBO_BOX(widget), &iter))
+	{
+		gchar *commit_message;
+		GtkTreeModel *model = gtk_combo_box_get_model(GTK_COMBO_BOX(widget));
+		gboolean active = FALSE;
+
+		gtk_tree_model_get(model, &iter,
+			COMMIT_MESSAGE_HISTORY_FULL_TEXT, &commit_message,
+			COMMIT_MESSAGE_HISTORY_ACTIVE, &active, -1);
+
+		if (active)
+		{
+			GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(user_data));
+			gtk_text_buffer_set_text(buffer, commit_message, -1);
+		}
+		g_free(commit_message);
+	}
+}
+
+static GtkWidget *
+create_commit_message_history_combobox(void)
+{
+	GtkWidget *combobox;
+	GtkCellRenderer *renderer;
+	GtkTreeIter iter;
+	GtkListStore *store;
+	GSList *list_item = NULL;
+	GString *display_message_string;
+	gchar *display_message;
+
+	combobox = gtk_combo_box_new();
+	renderer = gtk_cell_renderer_text_new();
+	store = gtk_list_store_new(
+		COMMIT_MESSAGE_HISTORY_NUM_COLUMNS,
+		G_TYPE_STRING,
+		G_TYPE_STRING,
+		G_TYPE_BOOLEAN);
+
+	foreach_slist(list_item, commit_message_history)
+	{
+		display_message_string = g_string_new(list_item->data);
+		/* replace line breaks */
+		utils_string_replace_all(display_message_string, "\n", " ");
+		/* shorten commit message */
+		if (display_message_string->len > 80)
+		{
+			g_string_truncate(display_message_string, 80);
+			g_string_append(display_message_string, "...");
+		}
+		display_message = g_string_free(display_message_string, FALSE);
+
+		/* by _prepend() we reverse the list order for display on purpose:
+		 * most recent item should be on top */
+		gtk_list_store_prepend(store, &iter);
+		gtk_list_store_set(store, &iter,
+			COMMIT_MESSAGE_HISTORY_DISPLAY_TEXT, display_message,
+			COMMIT_MESSAGE_HISTORY_FULL_TEXT, list_item->data,
+			COMMIT_MESSAGE_HISTORY_ACTIVE, TRUE, -1);
+
+		g_free(display_message);
+	}
+
+	gtk_list_store_prepend(store, &iter);
+	gtk_list_store_set(store, &iter,
+		COMMIT_MESSAGE_HISTORY_DISPLAY_TEXT, _("Choose a previous commit message"),
+		COMMIT_MESSAGE_HISTORY_FULL_TEXT, NULL,
+		COMMIT_MESSAGE_HISTORY_ACTIVE, FALSE, -1);
+
+	gtk_combo_box_set_model(GTK_COMBO_BOX(combobox), GTK_TREE_MODEL(store));
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combobox), 0);
+	g_object_unref(store);
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combobox), renderer, TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combobox), renderer,
+		"text", COMMIT_MESSAGE_HISTORY_DISPLAY_TEXT,
+		"sensitive", COMMIT_MESSAGE_HISTORY_ACTIVE, NULL);
+
+	return combobox;
+}
+
 static gboolean commit_text_line_number_update_cb(GtkWidget *widget, GdkEvent *event,
 												  gpointer user_data)
 {
@@ -1363,6 +1458,7 @@ create_commitDialog(void)
 	GtkWidget *bottom_vbox;
 	GtkWidget *commit_text_vbox;
 	GtkWidget *lineColumnLabel;
+	GtkWidget *commitMessageHistoryComboBox;
 	GtkTreeSelection *sel;
 
 	gchar *rcstyle = g_strdup_printf("style \"geanyvc-diff-font\"\n"
@@ -1476,6 +1572,11 @@ create_commitDialog(void)
 	gtk_box_pack_end(GTK_BOX(commit_text_vbox), lineColumnLabel, FALSE, TRUE, 0);
 	gtk_widget_show(lineColumnLabel);
 
+	/* last commit message dropdown */
+	commitMessageHistoryComboBox = create_commit_message_history_combobox();
+	gtk_box_pack_end(GTK_BOX(commit_text_vbox), commitMessageHistoryComboBox, FALSE, TRUE, 0);
+	gtk_widget_show(commitMessageHistoryComboBox);
+
 	dialog_action_area1 = gtk_dialog_get_action_area(GTK_DIALOG(commitDialog));
 	gtk_widget_show(dialog_action_area1);
 	gtk_button_box_set_layout(GTK_BUTTON_BOX(dialog_action_area1), GTK_BUTTONBOX_END);
@@ -1496,6 +1597,8 @@ create_commitDialog(void)
 		G_CALLBACK(commit_text_line_number_update_cb), lineColumnLabel);
 	g_signal_connect(textCommitMessage, "button-release-event",
 		G_CALLBACK(commit_text_line_number_update_cb), lineColumnLabel);
+	g_signal_connect(commitMessageHistoryComboBox, "changed",
+		G_CALLBACK(commit_message_update_cb), textCommitMessage);
 	/* initial setup */
 	commit_text_line_number_update_cb(textCommitMessage, NULL, lineColumnLabel);
 
@@ -1519,6 +1622,29 @@ create_commitDialog(void)
 	GLADE_HOOKUP_OBJECT(commitDialog, select_cbox, "select_cbox");
 
 	return commitDialog;
+}
+
+static void
+add_commit_message_to_history(const gchar *commit_message)
+{
+	GSList *list_item = NULL;
+	gchar *message = g_strdup(commit_message);
+
+	/* add commit message to the history */
+	commit_message_history = g_slist_append(commit_message_history, (gpointer)message);
+
+	/* House keeping: keep only a maximum of COMMIT_MESSAGE_HISTORY_LENGTH items and delete the rest
+	 * We remove the first element from the list as often as the list is too long.
+	 * While the loop is not the most efficient way, it should be ok since the list never has
+	 * much more than 10 items */
+	while (g_slist_length(commit_message_history) > COMMIT_MESSAGE_HISTORY_LENGTH)
+	{
+		list_item = commit_message_history; /* remember the element to delete */
+		commit_message_history = list_item->next; /* start the list with the next item */
+		/* delete the current item and its data */
+		list_item->next = NULL;
+		g_slist_free_full(list_item, g_free);
+	}
 }
 
 static void
@@ -1630,6 +1756,7 @@ vccommit_activated(G_GNUC_UNUSED GtkMenuItem * menuitem, G_GNUC_UNUSED gpointer 
 		gtk_text_buffer_get_start_iter(mbuf, &begin);
 		gtk_text_buffer_get_end_iter(mbuf, &end);
 		message = gtk_text_buffer_get_text(mbuf, &begin, &end, FALSE);
+		add_commit_message_to_history(message);
 		gtk_tree_model_foreach(model, get_commit_files_foreach, &selected_files);
 		if (!EMPTY(message) && selected_files)
 		{
@@ -1782,6 +1909,7 @@ static struct
 	GtkWidget *cb_attach_to_menubar;
 	GtkWidget *cb_cvs;
 	GtkWidget *cb_git;
+	GtkWidget *cb_fossil;
 	GtkWidget *cb_svn;
 	GtkWidget *cb_svk;
 	GtkWidget *cb_bzr;
@@ -1795,6 +1923,8 @@ widgets;
 static void
 save_config(void)
 {
+	GSList *list_item = NULL;
+	gint list_item_count = 0;
 	GKeyFile *config = g_key_file_new();
 	gchar *config_dir = g_path_get_dirname(config_file);
 
@@ -1810,6 +1940,7 @@ save_config(void)
 
 	g_key_file_set_boolean(config, "VC", "enable_cvs", enable_cvs);
 	g_key_file_set_boolean(config, "VC", "enable_git", enable_git);
+	g_key_file_set_boolean(config, "VC", "enable_fossil", enable_fossil);
 	g_key_file_set_boolean(config, "VC", "enable_svn", enable_svn);
 	g_key_file_set_boolean(config, "VC", "enable_svk", enable_svk);
 	g_key_file_set_boolean(config, "VC", "enable_bzr", enable_bzr);
@@ -1825,6 +1956,16 @@ save_config(void)
 			"commit_dialog_width", commit_dialog_width);
 		g_key_file_set_integer(config, "CommitDialog",
 			"commit_dialog_height", commit_dialog_height);
+	}
+
+	g_key_file_remove_group(config, "CommitMessageHistory", NULL); /* cleanup */
+	foreach_slist(list_item, commit_message_history)
+	{
+		gchar *key = g_strdup_printf("message_%d", list_item_count);
+		g_key_file_set_string(config, "CommitMessageHistory", key, list_item->data);
+		g_free(key);
+
+		list_item_count++;
 	}
 
 	if (!g_file_test(config_dir, G_FILE_TEST_IS_DIR)
@@ -1869,6 +2010,7 @@ on_configure_response(G_GNUC_UNUSED GtkDialog * dialog, gint response,
 
 		enable_cvs = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets.cb_cvs));
 		enable_git = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets.cb_git));
+		enable_fossil = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets.cb_fossil));
 		enable_svn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets.cb_svn));
 		enable_svk = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets.cb_svk));
 		enable_bzr = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets.cb_bzr));
@@ -1965,6 +2107,11 @@ plugin_configure(GtkDialog * dialog)
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widgets.cb_git), enable_git);
 	gtk_box_pack_start(GTK_BOX(vbox), widgets.cb_git, TRUE, FALSE, 2);
 
+	widgets.cb_fossil = gtk_check_button_new_with_label(_("Enable Fossil"));
+	gtk_button_set_focus_on_click(GTK_BUTTON(widgets.cb_fossil), FALSE);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widgets.cb_fossil), enable_fossil);
+	gtk_box_pack_start(GTK_BOX(vbox), widgets.cb_fossil, TRUE, FALSE, 2);
+
 	widgets.cb_svn = gtk_check_button_new_with_label(_("Enable SVN"));
 	gtk_button_set_focus_on_click(GTK_BUTTON(widgets.cb_svn), FALSE);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widgets.cb_svn), enable_svn);
@@ -2009,6 +2156,8 @@ load_config(void)
 	GError *error = NULL;
 #endif
 
+	gchar **commit_message_history_keys, **ptr = NULL;
+	gchar *commit_message;
 	GKeyFile *config = g_key_file_new();
 
 	g_key_file_load_from_file(config, config_file, G_KEY_FILE_NONE, NULL);
@@ -2026,6 +2175,8 @@ load_config(void)
 	enable_cvs = utils_get_setting_boolean(config, "VC", "enable_cvs",
 		TRUE);
 	enable_git = utils_get_setting_boolean(config, "VC", "enable_git",
+		TRUE);
+	enable_fossil = utils_get_setting_boolean(config, "VC", "enable_fossil",
 		TRUE);
 	enable_svn = utils_get_setting_boolean(config, "VC", "enable_svn",
 		TRUE);
@@ -2054,6 +2205,18 @@ load_config(void)
 	commit_dialog_height = utils_get_setting_integer(config, "CommitDialog",
 		"commit_dialog_height", 500);
 
+	commit_message_history_keys = g_key_file_get_keys(config,"CommitMessageHistory", NULL, NULL);
+	if (commit_message_history_keys != NULL)
+	{
+		foreach_strv(ptr, commit_message_history_keys)
+		{
+			commit_message = g_key_file_get_string(config, "CommitMessageHistory", *ptr, NULL);
+			/* do not free the newly allocated commit_message string as we need it later in the list,
+			 * will be finally freed when cleaning up the commit_message_history list */
+			commit_message_history = g_slist_append(commit_message_history, commit_message);
+		}
+		g_strfreev(commit_message_history_keys);
+	}
 	g_key_file_free(config);
 }
 
@@ -2066,6 +2229,7 @@ registrate(void)
 		g_slist_free(VC);
 		VC = NULL;
 	}
+	REGISTER_VC(FOSSIL, enable_fossil);
 	REGISTER_VC(GIT, enable_git);
 	REGISTER_VC(SVN, enable_svn);
 	REGISTER_VC(CVS, enable_cvs);
@@ -2408,5 +2572,6 @@ plugin_cleanup(void)
 	gtk_widget_destroy(menu_entry);
 	g_slist_free(VC);
 	VC = NULL;
+	g_slist_free_full(commit_message_history, g_free);
 	g_free(config_file);
 }
