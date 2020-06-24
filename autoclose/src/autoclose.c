@@ -68,6 +68,7 @@ typedef struct {
 	gboolean close_functions;
 	gboolean bcksp_remove_pair;
 	gboolean jump_on_tab;
+	gboolean no_jump_after_return;
 	/* others */
 	gchar *config_file;
 } AutocloseInfo;
@@ -815,6 +816,9 @@ auto_close_chars(
 	}
 	else if (ch == GDK_Return)
 	{
+		if(ac_info->no_jump_after_return)
+			data->jump_on_tab = 0;
+
 		return improve_indent(sci, editor, pos);
 	}
 	else if (ch == GDK_Tab && ac_info->jump_on_tab)
@@ -1034,6 +1038,7 @@ configure_response_cb(GtkDialog *dialog, gint response, gpointer user_data)
 	SAVE_CONF_BOOL(close_functions);
 	SAVE_CONF_BOOL(bcksp_remove_pair);
 	SAVE_CONF_BOOL(jump_on_tab);
+	SAVE_CONF_BOOL(no_jump_after_return);
 
 #undef SAVE_CONF_BOOL
 
@@ -1101,6 +1106,7 @@ plugin_autoclose_init(GeanyPlugin *plugin, G_GNUC_UNUSED gpointer pdata)
 	GET_CONF_BOOL(close_functions, TRUE);
 	GET_CONF_BOOL(bcksp_remove_pair, FALSE);
 	GET_CONF_BOOL(jump_on_tab, TRUE);
+	GET_CONF_BOOL(no_jump_after_return, FALSE);
 
 #undef GET_CONF_BOOL
 
@@ -1163,6 +1169,13 @@ ac_delete_pairing_brace_cb(GtkToggleButton *togglebutton, gpointer data)
 {
 	GET_CHECKBOX_ACTIVE(delete_pairing_brace);
 	SET_SENS(bcksp_remove_pair);
+}
+
+static void
+ac_jump_on_tab_cb(GtkToggleButton *togglebutton, gpointer data)
+{
+	GET_CHECKBOX_ACTIVE(jump_on_tab);
+	SET_SENS(no_jump_after_return);
 }
 
 static GtkWidget *
@@ -1269,6 +1282,10 @@ plugin_autoclose_configure(G_GNUC_UNUSED GeanyPlugin *plugin, GtkDialog *dialog,
 		"or last \"}\"."));
 	WIDGET_CONF_BOOL(jump_on_tab, _("Jump on Tab to enclosed char"),
 		_("Jump behind autoclosed items on Tab press."));
+	g_signal_connect(widget, "toggled", G_CALLBACK(ac_jump_on_tab_cb), dialog);
+	WIDGET_CONF_BOOL(no_jump_after_return, _("Don't Jump on Tab after "
+		"Return"), _("By default, 'Jump on Tab to enclosed char' will "
+		"jump even after a Return key."));
 
 #undef WIDGET_CONF_BOOL
 #undef WIDGET_FRAME
@@ -1279,6 +1296,7 @@ plugin_autoclose_configure(G_GNUC_UNUSED GeanyPlugin *plugin, GtkDialog *dialog,
 	ac_parenthesis_cb(NULL, dialog);
 	ac_abracket_htmlonly_cb(NULL, dialog);
 	ac_delete_pairing_brace_cb(NULL, dialog);
+	ac_jump_on_tab_cb(NULL, dialog);
 	g_signal_connect(dialog, "response", G_CALLBACK(configure_response_cb), NULL);
 	gtk_widget_show_all(scrollbox);
 	return scrollbox;
