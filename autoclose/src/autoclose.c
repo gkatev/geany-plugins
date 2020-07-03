@@ -63,6 +63,7 @@ typedef struct {
 	gboolean keep_selection;
 	gboolean make_indent_for_cbracket;
 	gboolean move_cursor_to_beginning;
+	gboolean avoid_indent_empty_line;
 	gboolean improved_cbracket_indent;
 	gboolean whitesmiths_style;
 	gboolean close_functions;
@@ -530,20 +531,30 @@ enclose_selection(
 	if (char_is_curly_bracket(ch) && lexer_has_braces(sci, lexer) &&
 			ac_info->make_indent_for_cbracket && !in_comment)
 	{
+		gboolean avoid_empty_line = FALSE;
+
 		start_line = sci_get_line_from_position(sci, start);
 
+		if(ac_info->avoid_indent_empty_line) {
+			gchar nc = sci_get_char_at(sci, start);
+			gchar nnc = sci_get_char_at(sci, start+1);
+
+			if(nc == '\n' || (nc == '\r' && nnc == '\n'))
+				avoid_empty_line = TRUE;
+		}
+
 		// Insert the brace right before the start of the selection
-		insert_text(sci, start, "{\n");
+		insert_text(sci, start, (avoid_empty_line ? "{" : "{\n"));
 
 		end_line = sci_get_line_from_position(sci, end);
 		start_indent = sci_get_line_indentation(sci, start_line);
 		indent_width = editor_get_indent_prefs(editor)->width;
 		sci_set_line_indentation(sci, start_line, start_indent);
-		if (!ac_info->whitesmiths_style)
-			sci_set_line_indentation(sci, start_line + 1, start_indent + indent_width);
-		else
+
+		if(!avoid_empty_line)
 			sci_set_line_indentation(sci, start_line + 1, start_indent);
-		for (i = start_line + 2; i <= end_line; i++)
+
+		for (i = start_line + 1; i <= end_line; i++)
 		{
 			current_indent = sci_get_line_indentation(sci, i);
 			if (!ac_info->whitesmiths_style)
@@ -1032,6 +1043,7 @@ configure_response_cb(GtkDialog *dialog, gint response, gpointer user_data)
 	SAVE_CONF_BOOL(comments_enclose);
 	SAVE_CONF_BOOL(keep_selection);
 	SAVE_CONF_BOOL(make_indent_for_cbracket);
+	SAVE_CONF_BOOL(avoid_indent_empty_line);
 	SAVE_CONF_BOOL(move_cursor_to_beginning);
 	SAVE_CONF_BOOL(improved_cbracket_indent);
 	SAVE_CONF_BOOL(whitesmiths_style);
@@ -1100,6 +1112,7 @@ plugin_autoclose_init(GeanyPlugin *plugin, G_GNUC_UNUSED gpointer pdata)
 	GET_CONF_BOOL(comments_enclose, FALSE);
 	GET_CONF_BOOL(keep_selection, TRUE);
 	GET_CONF_BOOL(make_indent_for_cbracket, TRUE);
+	GET_CONF_BOOL(avoid_indent_empty_line, TRUE);
 	GET_CONF_BOOL(move_cursor_to_beginning, TRUE);
 	GET_CONF_BOOL(improved_cbracket_indent, TRUE);
 	GET_CONF_BOOL(whitesmiths_style, FALSE);
@@ -1124,6 +1137,7 @@ static void
 ac_make_indent_for_cbracket_cb(GtkToggleButton *togglebutton, gpointer data)
 {
 	GET_CHECKBOX_ACTIVE(make_indent_for_cbracket);
+	SET_SENS(avoid_indent_empty_line);
 	SET_SENS(move_cursor_to_beginning);
 }
 
@@ -1240,6 +1254,9 @@ plugin_autoclose_configure(G_GNUC_UNUSED GeanyPlugin *plugin, GtkDialog *dialog,
 		"\nYou do not need to select block precisely - block enclosing "
 		"takes into account only lines."));
 	g_signal_connect(widget, "toggled", G_CALLBACK(ac_make_indent_for_cbracket_cb), dialog);
+	WIDGET_CONF_BOOL(avoid_indent_empty_line, _("Avoid empty line"),
+		_("If you checked \"Indent when enclosing\", and the first character "
+		"of the text to be enclosed is a newline, it won't be included."));
 	WIDGET_CONF_BOOL(move_cursor_to_beginning, _("Move cursor to beginning"),
 		_("If you checked \"Indent when enclosing\", moving cursor "
 		"to beginning may be useful: usually you make new block "
