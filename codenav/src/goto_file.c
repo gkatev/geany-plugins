@@ -277,7 +277,7 @@ menu_item_activate(guint key_id)
 	GtkWidget* dialog_entry;
 	GtkTreeModel* completion_list;
 	GeanyDocument* current_doc = document_get_current();
-	gchar *chosen_path;
+	const gchar *chosen_path;
 	const gchar *chosen_file;
 	gint response;
 
@@ -296,10 +296,14 @@ menu_item_activate(guint key_id)
 _show_dialog:
 	response = gtk_dialog_run(GTK_DIALOG(dialog));
 
-	/* Filename */
+	/* Entered filename */
 	chosen_file = gtk_entry_get_text(GTK_ENTRY(dialog_entry));
-	/* Path + Filename */
-	chosen_path = g_build_filename(directory_ref, chosen_file, NULL);
+
+	/* Filename as-is, if it's absolute, otherwise relative to the doc dir */
+	if (g_path_is_absolute(chosen_file))
+		chosen_path = chosen_file;
+	else
+		chosen_path = g_build_filename(directory_ref, chosen_file, NULL);
 
 	if ( response == GTK_RESPONSE_ACCEPT )
 	{
@@ -312,7 +316,7 @@ _show_dialog:
 													GTK_DIALOG_MODAL,
 													GTK_MESSAGE_QUESTION,
 													GTK_BUTTONS_OK_CANCEL,
-													_("%s not found, create it?"), chosen_file);
+													_("%s not found, create it?"), chosen_path);
 			gtk_window_set_title(GTK_WINDOW(dialog_new), "Geany");
 			response = gtk_dialog_run(GTK_DIALOG(dialog_new));
 
