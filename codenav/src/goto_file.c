@@ -357,6 +357,7 @@ create_dialog(GtkWidget **dialog, GtkTreeModel *completion_model)
 	completion = gtk_entry_completion_new();
 	gtk_entry_set_completion(GTK_ENTRY(entry), completion);
 	gtk_entry_completion_set_model (completion, completion_model);
+	g_object_unref(completion);
 
 	/* Completion options */
 	gtk_entry_completion_set_inline_completion(completion, 1);
