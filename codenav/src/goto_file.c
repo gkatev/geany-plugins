@@ -256,6 +256,46 @@ entry_inline_completion_event(GtkEntryCompletion *completion, gchar *prefix, Gtk
 	}
 }
 
+static gboolean send_key_event(GtkWidget *widget, guint keyval) {
+	GdkEvent *event;
+	GdkKeymapKey *keys;
+	gint n_keys;
+	gboolean status;
+
+	/* https://mail.gnome.org/archives/gtk-app-devel-list/2004-July/msg00016.html */
+
+	status = gdk_keymap_get_entries_for_keyval(
+		gdk_keymap_get_for_display(gdk_display_get_default()),
+		keyval, &keys, &n_keys);
+
+	if(!status)
+		return FALSE;
+
+	event = gdk_event_new(GDK_KEY_PRESS);
+	event->key.window = g_object_ref(gtk_widget_get_window(widget));
+	event->key.state = 0;
+	event->key.hardware_keycode = keys[0].keycode;
+
+	// optional but possibly nice to have
+	// event->key.keyval = gdk_unicode_to_keyval(keyval);
+	event->key.keyval = 65364;
+	event->key.length = 0;
+
+printf("keycode %u\n", event->key.hardware_keycode);
+printf("keyval %u\n", event->key.keyval);
+
+	/* the rest are no-ops */
+	event->key.send_event = FALSE;
+	event->key.time = GDK_CURRENT_TIME;   
+
+	gtk_main_do_event(event);
+
+	gdk_event_free(event);
+	g_free(keys);
+
+	return TRUE;
+}
+
 /**
  * @brief 	Widget key callback (path entry field)
  * @param	GtkEntry *entry
@@ -269,12 +309,22 @@ entry_key_event(GtkEntry *entry, GdkEventKey *key, GtkEntryCompletion *completio
 {
 	gint end_pos;
 
-	if (key->keyval == GDK_KEY_Tab)
+	// if(key->keyval == GDK_KEY_Down) {
+		// printf("TEST\n");
+		// pause();
+	// }
+
+	if(key->keyval == GDK_KEY_Tab)
 	{
+		gboolean has_inliline_completion;
+		
+		has_inliline_completion = gtk_editable_get_selection_bounds(
+			GTK_EDITABLE(entry), NULL, &end_pos);
+		
 		/* The user may 'accept' the autocomplete's suggestion with the Tab key,
 		 * like in shells, and in GtkFileChoose. If there's a suggestion, it will
 		 * be selected, and we may simply move the cursor to accept it. */
-		if (gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), NULL, &end_pos))
+		if(has_inliline_completion)
 		{
 			gtk_editable_set_position(GTK_EDITABLE(entry), end_pos);
 
@@ -290,15 +340,23 @@ entry_key_event(GtkEntry *entry, GdkEventKey *key, GtkEntryCompletion *completio
 		 * new/next directory. */
 		gtk_entry_completion_insert_prefix(completion);
 
+		/* 3rd Tab key purpose: show the completion list, useful when it has
+		 * closed, to avoid adding/removing characters to get it to show up.
+		 * Kind of brute calling it every time here, but works. */
+		// gtk_entry_completion_complete(completion);
+
+		if(!has_inliline_completion)
+			send_key_event(GTK_WIDGET(entry), GDK_KEY_Down);
+
 		/* Effectively reserve the Tab key for autocompletion purposes,
 		 * so don't let any other handlers run. Do this even when there
 		 * wasn't any actual suggestion, to make it safe for the user
 		 * to 'spam' the key (mimics GtkFileChooser). */
 		return TRUE;
 	}
-	else if (key->keyval == GDK_KEY_Return)
+	else if(key->keyval == GDK_KEY_Return)
 	{
-		if (gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), NULL, &end_pos))
+		if(gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), NULL, &end_pos))
 		{
 			gtk_editable_set_position(GTK_EDITABLE(entry), end_pos);
 			g_signal_emit_by_name(entry, "changed");
